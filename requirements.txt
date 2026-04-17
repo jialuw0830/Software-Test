@@ -1,0 +1,156 @@
+# Requirements Input File for LAGM-based Black-box Testing
+# Purpose: This file contains cleaned, requirement-only inputs for LLM-based structure extraction.
+# Note: Non-AI-based EP/BVA/sample test cases from the original document are intentionally removed.
+
+==================================================
+SYSTEM 1: ONLINE MOVIE TICKET BOOKING SYSTEM
+==================================================
+[System Overview]
+The system under test is an online movie ticket booking system. Users can browse movies, select a showtime, choose the number of tickets, and complete payment through the booking interface. The tester cannot access the internal code, database, or server-side logic. Testing is performed only based on externally observable behavior described in the requirements below.
+
+[Functional Requirements]
+1. Movie Selection
+- The system displays available movies and their showtimes.
+- A user must select exactly one movie showtime before booking tickets.
+- If no showtime is selected, the system must not allow the booking process to continue.
+
+2. Ticket Quantity
+- A user can book 1 to 6 tickets in one transaction.
+- If the number of tickets is less than 1 or greater than 6, the system must reject the booking request and display an error message.
+
+3. Ticket Price
+- Each ticket costs $12.00 on weekdays and $15.00 on weekends.
+- Total Price = Ticket Price x Number of Tickets.
+
+4. Seat Availability
+- The selected showtime has a limited number of available seats.
+- A booking can only be completed if the requested number of tickets does not exceed the number of remaining seats.
+- If the requested quantity is greater than the available seats, the system must reject the booking and display the message: "Insufficient seats available".
+
+5. User Age Restriction
+- Some movies are marked as Adults Only.
+- For an Adults Only movie, the user age must be 18 or above.
+- If the user age is below 18, the system must reject the booking for that movie and display an age restriction message.
+
+6. Payment Amount
+- The user must pay the exact total amount or a greater amount.
+- If the payment amount is less than the total price, the payment fails and the system displays a message asking the user to pay the remaining balance.
+- If the payment amount is greater than the total price, the system returns the difference as change.
+- The returned change must not exceed $20.00.
+- If the required change is greater than $20.00, the system must reject the transaction.
+
+7. Booking Confirmation
+- A booking is confirmed only when all of the following conditions are satisfied:
+  - a valid showtime is selected
+  - ticket quantity is within the allowed range
+  - enough seats are available
+  - age restriction is satisfied
+  - payment is successful
+
+==================================================
+SYSTEM 2: HOME TUTOR PLATFORM AGENCY FEE AND REFUND SETTLEMENT SYSTEM
+==================================================
+[System Overview]
+This system is used to automatically calculate the information fee (agency fee) for tutors during the order-taking process, as well as the refund amount in case of a failed order (yellow order). The system must strictly follow the business logic below.
+
+[Functional Requirements]
+1. Information Fee Calculation Rules
+The system calculates the payable information fee based on teaching type, weekly frequency, single/monthly lesson fee, and teaching method.
+
+1.1 Monthly Tutoring
+- Information fee = 20% of the total fee for the month.
+
+1.2 Tutoring by Sessions (base coefficient)
+- 1 session per week: coefficient = 1.5
+- 2 sessions per week: coefficient = 2.0
+- 3 sessions per week: coefficient = 2.5
+- 4 sessions per week: coefficient = 3.0
+- 5 sessions per week: coefficient = 3.5
+- 6 or more sessions per week: coefficient = 4.0
+- Base information fee = single lesson fee x corresponding frequency coefficient.
+
+1.3 Teaching Method Adjustment
+- If the teaching method is online, the final settlement amount must be multiplied by 1.2.
+- Offline teaching has no adjustment.
+
+2. Basic Refund Amount Calculation
+When a teacher initiates a refund, the basic refund amount is calculated based on teaching progress and division of responsibility.
+
+2.1 Missed Class (Parent's Responsibility)
+- Basic refund amount = 100% of the prepaid information fee.
+
+2.2 Missed Class (Teacher's Responsibility)
+- Basic refund amount = 50% of the prepaid information fee.
+
+2.3 Trial Class Completed / Partial Class Taken but Failed
+- Basic refund amount = prepaid information fee - (50% x total class fee already received by the teacher).
+- If the calculated basic refund amount is less than or equal to 0, the basic refund amount is set to 0 and no refund is given.
+
+3. Refund Interception and Deduction Conditions
+Before executing refund payment, the system must perform pre-validation.
+
+3.1 One-vote Veto (full amount non-refundable)
+If any of the following conditions are met, the basic refund amount is forcibly set to 0:
+- After a trial lesson is successfully completed, the teacher revokes for personal reasons.
+- No feedback is provided to the platform within 7 days after the trial lesson.
+- Serious violations or breaches occur, including but not limited to:
+  - mentioning agency/information fees to parents
+  - being complained about by parents
+  - being late or leaving early
+  - privately adjusting prices
+  - privately transferring orders
+
+3.2 Additional Penalty Deductions
+- If the teacher has not blocked and deleted the parents before refunding, deduct 50 yuan from the basic refund amount.
+- If the teacher actively provided a free trial during trial teaching to promote orders and caused a failed order, deduct 150 yuan from the basic refund amount.
+
+3.3 Minimum Refund Guarantee
+- After penalties are deducted, if the final refund amount is negative, the final payment amount is adjusted to 0 yuan.
+
+==================================================
+SYSTEM 3: SAME-CITY EXPRESS DELIVERY FREIGHT CALCULATION SYSTEM
+==================================================
+[System Overview]
+This system is used to automatically calculate the final shipping fee based on the package's actual weight and the sender's VIP level. The system must strictly follow the billing logic in the order below.
+
+[Functional Requirements]
+1. Stepwise Basic Freight Calculation
+The system first calculates the basic shipping fee based on package weight W (kg). Any excess weight that is less than one billing unit is rounded up and charged as one billing unit.
+
+1.1 First Weight Interval
+- If 0 < W <= 1.0 kg, charge a fixed first weight fee of 10.0 yuan.
+
+1.2 Light Additional Weight Interval
+- If 1.0 < W <= 5.0 kg, include the first weight fee of 10.0 yuan.
+- For the portion exceeding 1.0 kg, charge 4.0 yuan for every 0.5 kg.
+
+1.3 Medium Additional Weight Interval
+- If 5.0 < W <= 20.0 kg, include the total fee for the first 5.0 kg, which is 42 yuan.
+- For the portion exceeding 5.0 kg, charge 6.0 yuan per 1.0 kg.
+
+1.4 Heavy Additional Weight Interval
+- If 20.0 < W <= 50.0 kg, include the total fee for the first 20.0 kg, which is 132 yuan.
+- For the portion exceeding 20.0 kg, charge 8.0 yuan per 1.0 kg.
+
+1.5 Extreme Weight
+- If W <= 0 or W > 50.0 kg, the system blocks the request and prompts: "Abnormal weight or overweight, collection refused".
+
+2. VIP Levels and Discount Thresholds
+After calculating the basic shipping fee, the system applies discount rules based on the user's VIP level. Discounts apply only to the shipping fee.
+
+2.1 VIP0 (Regular Users)
+- No discount.
+- Final shipping fee = basic shipping fee.
+
+2.2 VIP1
+- If the basic shipping fee >= 30.0 yuan, apply a 10% discount to the total shipping fee.
+- If the basic shipping fee < 30.0 yuan, no discount is applied.
+
+2.3 VIP2
+- No threshold.
+- Apply a 15% discount to the total shipping fee.
+
+2.4 VIP3
+- Waive the first weight fee directly (subtract 10.0 yuan from the basic shipping fee).
+- After subtracting the first weight fee, if the remaining additional weight fee > 50.0 yuan, the portion exceeding 50.0 yuan enjoys a 30% discount.
+- The portion within 50.0 yuan is not discounted.
