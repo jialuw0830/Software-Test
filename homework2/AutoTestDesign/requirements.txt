@@ -1,0 +1,9 @@
+streamlit>=1.35
+pandas>=2.0
+openpyxl>=3.1
+pydantic>=2.0
+pytest>=8.0
+playwright>=1.44
+pytest-playwright>=0.5
+requests>=2.31
+python-dotenv>=1.0

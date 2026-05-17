@@ -1,0 +1,10 @@
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+.streamlit/
+outputs/*
+!outputs/.gitkeep
+generated_tests/__pycache__/
+test-results/
+playwright-report/
