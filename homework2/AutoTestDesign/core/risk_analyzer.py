@@ -42,14 +42,10 @@ def analyze_risk(
 
 def _try_llm_risk(requirements: list[StructuredRequirement], llm_client: LLMClient) -> list[RiskAssessment]:
     payload = [req.model_dump() for req in requirements]
-    prompt = (
-        "Analyze testing risk for these requirements. Return a JSON array with "
-        "requirement_id, module, business_impact, failure_probability, user_frequency, "
-        "implementation_complexity, risk_score, priority, rationale. Use 1-5 factor scores "
-        "and this formula: risk_score = 0.35*business_impact + 0.25*failure_probability + "
-        "0.20*user_frequency + 0.20*implementation_complexity.\n\n"
-        f"{payload}"
-    )
+    prompt_template = f.read()
+    payload_json = json.dumps(payload, indent=2, ensure_ascii=False)
+    prompt = prompt_template.replace("{structured_requirements}", payload_json)
+
     data = llm_client.generate_json(prompt, "You are a software testing risk analyst. Return JSON only.")
     if not isinstance(data, list):
         return []

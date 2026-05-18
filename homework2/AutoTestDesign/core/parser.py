@@ -48,12 +48,9 @@ def parse_uploaded_file(file_name: str, content: bytes, llm_client: LLMClient) -
 
 
 def _try_llm_parse(raw_text: str, llm_client: LLMClient) -> list[StructuredRequirement]:
-    prompt = (
-        "Parse these software requirements into a JSON array. Each object must include "
-        "requirement_id, module, feature, actor, preconditions, input_fields, data_ranges, "
-        "conditions, expected_action, requirement_type, ambiguity_notes, raw_text.\n\n"
-        f"{raw_text}"
-    )
+    with open("requirement_parser.txt", "r", encoding="utf-8") as f:
+        prompt_template = f.read()
+    prompt = prompt_template.replace("{user_input}", raw_text)
     data = llm_client.generate_json(prompt, "You are a software testing requirement parser. Return JSON only.")
     if not isinstance(data, list):
         return []
