@@ -49,12 +49,15 @@ You will receive a JSON array. Each object contains the following fields (all fi
 
 ### Output Requirements
 - Output **only a JSON array**, without any additional explanations, comments, or Markdown markers.
-- Each object in the array must contain the following fields:
-  - `"requirement_id"`: The id from the input
+- Each object in the array must contain the following fields (exact names and types):
+  - `"requirement_id"`: string (from input)
+  - `"module"`: string (inferred from the requirement, e.g., "Login", "Cart")
   - `"business_impact"`: integer 1-5
   - `"failure_probability"`: integer 1-5
   - `"user_frequency"`: integer 1-5
   - `"implementation_complexity"`: integer 1-5
+  - `"risk_score"`: float, calculated as 0.35*business_impact + 0.25*failure_probability + 0.20*user_frequency + 0.20*implementation_complexity (rounded to two decimals)
+  - `"priority"`: string, either "High", "Medium", or "Low" (based on the threshold above)
   - `"rationale"`: English reason, 10–20 words, explaining the main contributing factor
 
 ### Example
@@ -79,7 +82,17 @@ Input:
 
 Output:
 [
-  {"requirement_id": "R1", "business_impact": 3, "failure_probability": 2, "user_frequency": 5, "implementation_complexity": 1, "rationale": "Frequent action but low business impact, simple validation"}
+  {
+    "requirement_id": "R1",
+    "module": "Login",
+    "business_impact": 3,
+    "failure_probability": 2,
+    "user_frequency": 5,
+    "implementation_complexity": 1,
+    "risk_score": 3.55,
+    "priority": "Medium",
+    "rationale": "Frequent action but low business impact, simple validation"
+  }
 ]
 
 ### Now analyze the following structured requirements:

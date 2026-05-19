@@ -35,6 +35,12 @@ Your task is to extract structured requirement information from the user's origi
 ### Splitting Rules
 - Split each independent behavior branch into its own requirement (e.g., valid login and invalid login as separate objects).
 
+### CRITICAL CONSTRAINTS (MUST FOLLOW)
+- **Maximum output size**: The JSON array MUST NOT contain more than **50** objects. If the input contains many details, merge related UI or low-level behavior into a single requirement.
+- **Merging rule**: Do NOT split simple UI element existence (e.g., "username field", "password field", "login button") into separate requirements. Combine them into one requirement like "Login page contains all required input fields and controls".
+- **Error message merging**: Multiple validation rules for the same input field (e.g., empty username, invalid format, too long) can be separate, but each field should have at most 3-4 requirements.
+- **Prioritize**: Focus on functional rules, business logic, and important non-functional aspects. Omit trivial display details that can be verified in a single UI test.
+
 ### Example
 
 Input:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from .llm_client import LLMClient
 from .schemas import RiskAssessment, StructuredRequirement
-
+import json
 
 def calculate_risk_score(
     business_impact: int,
@@ -42,7 +42,8 @@ def analyze_risk(
 
 def _try_llm_risk(requirements: list[StructuredRequirement], llm_client: LLMClient) -> list[RiskAssessment]:
     payload = [req.model_dump() for req in requirements]
-    prompt_template = f.read()
+    with open("prompts/risk_analysis.txt", "r", encoding="utf-8") as f:
+        prompt_template = f.read()
     payload_json = json.dumps(payload, indent=2, ensure_ascii=False)
     prompt = prompt_template.replace("{structured_requirements}", payload_json)
 
@@ -50,6 +51,12 @@ def _try_llm_risk(requirements: list[StructuredRequirement], llm_client: LLMClie
     if not isinstance(data, list):
         return []
     result: list[RiskAssessment] = []
+
+    # 添加调试输出
+    print("=== LLM Returned Data ===")
+    print(data)
+    print("=========================")
+
     for item in data:
         try:
             item["risk_score"] = calculate_risk_score(

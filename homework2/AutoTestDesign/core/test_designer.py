@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from .llm_client import LLMClient
 from .schemas import CoverageItem, RiskAssessment, TestCase
+import json
 
 
 SELECTORS = {
@@ -44,7 +45,7 @@ def _try_llm_test_cases(
 ) -> list[TestCase]:
     coverage_payload = [item.model_dump() for item in coverage_items]
     risk_payload = [risk.model_dump() for risk in risks]
-    with open("test_case_generation.txt", "r", encoding="utf-8") as f:
+    with open("prompts/test_case_generation.txt", "r", encoding="utf-8") as f:
         prompt_template = f.read()
     coverage_json = json.dumps(coverage_payload, indent=2, ensure_ascii=False)
     risk_json = json.dumps(risk_payload, indent=2, ensure_ascii=False)

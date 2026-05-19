@@ -48,10 +48,11 @@ def parse_uploaded_file(file_name: str, content: bytes, llm_client: LLMClient) -
 
 
 def _try_llm_parse(raw_text: str, llm_client: LLMClient) -> list[StructuredRequirement]:
-    with open("requirement_parser.txt", "r", encoding="utf-8") as f:
+    with open("prompts/requirement_parser.txt", "r", encoding="utf-8") as f:
         prompt_template = f.read()
     prompt = prompt_template.replace("{user_input}", raw_text)
     data = llm_client.generate_json(prompt, "You are a software testing requirement parser. Return JSON only.")
+
     if not isinstance(data, list):
         return []
     parsed: list[StructuredRequirement] = []
@@ -61,7 +62,6 @@ def _try_llm_parse(raw_text: str, llm_client: LLMClient) -> list[StructuredRequi
         except Exception:
             continue
     return parsed
-
 
 def _extract_requirement_pairs(raw_text: str) -> list[tuple[str, str]]:
     text = raw_text.strip()

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from .llm_client import LLMClient
 from .schemas import CoverageItem, RiskAssessment, StructuredRequirement
+import json
 
 
 def identify_coverage_items(
@@ -31,7 +32,7 @@ def _try_llm_coverage(
     req_payload = [req.model_dump() for req in requirements]
     risk_payload = [risk.model_dump() for risk in risks]
 
-    with open("coverage_identifier.txt", "r", encoding="utf-8") as f:
+    with open("prompts/coverage_identifier.txt", "r", encoding="utf-8") as f:
         prompt_template = f.read()
     req_json = json.dumps(req_payload, indent=2, ensure_ascii=False)
     risk_json = json.dumps(risk_payload, indent=2, ensure_ascii=False)
