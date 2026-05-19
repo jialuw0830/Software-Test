@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from .llm_client import LLMClient
 from .schemas import CoverageItem, RiskAssessment, TestCase
+import json
 
 
 SELECTORS = {
@@ -44,13 +45,12 @@ def _try_llm_test_cases(
 ) -> list[TestCase]:
     coverage_payload = [item.model_dump() for item in coverage_items]
     risk_payload = [risk.model_dump() for risk in risks]
-    prompt = (
-        "Generate executable-friendly black-box test cases for SauceDemo. Return a JSON array "
-        "with test_case_id, requirement_id, coverage_id, module, technique, priority, "
-        "preconditions, test_data, steps, expected_result, automation_feasibility, "
-        "automation_selector_hints, traceability_notes. Use data-test selectors where useful.\n\n"
-        f"Coverage items: {coverage_payload}\nRisk analysis: {risk_payload}"
-    )
+    with open("prompts/test_case_generation.txt", "r", encoding="utf-8") as f:
+        prompt_template = f.read()
+    coverage_json = json.dumps(coverage_payload, indent=2, ensure_ascii=False)
+    risk_json = json.dumps(risk_payload, indent=2, ensure_ascii=False)
+    prompt = prompt_template.replace("{coverage_items_json}", coverage_json).replace("{risk_analysis_json}", risk_json)
+
     data = llm_client.generate_json(prompt, "You are a senior software testing engineer. Return JSON only.")
     if not isinstance(data, list):
         return []
