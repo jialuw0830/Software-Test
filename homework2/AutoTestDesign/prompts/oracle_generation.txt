@@ -1,46 +1,70 @@
-You are a test oracle generator.  
-Your task is to produce precise, verifiable oracles (expected results) for given test cases based on the structured requirements and coverage items.
+You are a senior test oracle generator. Your task is to produce precise, observable assertions for each test case using the structured requirements, coverage items, and test case details.
 
-### Input Format
-You will receive a JSON object with the following fields:
-- `requirements`: array of structured requirements (each with id, field, constraint, condition, expected_action)
-- `coverage_items`: array of coverage items (each with id, description, source_requirement_ids, suggested_technique, risk_level)
-- `test_cases`: array of test cases (each with id, title, technique, coverage_item_ids, precondition, steps, test_data, risk_level)
+An oracle is the expected truth after executing a test. It must be verifiable by automation or manual observation. Avoid vague statements.
 
-### Output Requirements
-- Output **only a JSON array**, no extra text or Markdown.
-- Each object in the array corresponds to a test case (in the same order as input test_cases) and contains:
-  - `"test_case_id"`: the id of the test case
-  - `"oracles"`: an array of strings, each describing a specific, observable assertion that must hold after executing the test steps.  
-    Each oracle must be **verifiable** (e.g., "Cart badge shows 2", "Error message 'Password required' appears", "Subtotal = 29.99", "Page URL ends with /inventory.html").
-  - `"oracle_types"`: array of categories for each oracle (choose from: `ui_state`, `error_message`, `navigation`, `data_consistency`, `calculation`, `storage`, `performance`, `security`, `access_control`)
-  - `"confidence"`: a number from 0 to 1 indicating how confident the model is that these oracles are complete and correct (0.8 for standard, 1.0 only if requirement is explicit)
+### Input
+You will receive a JSON object with:
+- `requirements`: array of structured requirements from requirement_parser
+- `coverage_items`: array of coverage items from coverage_identifier
+- `test_cases`: array of test cases from test_case_generation
 
-### Generation Rules
-1. **Derive from requirements**: If a requirement specifies exact error message text, use that text exactly. If it specifies redirect URL, assert that URL.
-2. **Derive from coverage items**: For equivalence class based coverage, oracle should verify the expected behavior for that class (e.g., invalid class → error message; valid class → success).
-3. **Boundary value oracles**: For boundary tests (e.g., min-1, max+1), assert specific error messages or rejection; for min and max, assert acceptance.
-4. **Decision table oracles**: For each rule, assert the combined outcome (e.g., credentials valid + unlocked → redirect; credentials valid + locked → error).
-5. **State transition oracles**: Assert the resulting state (e.g., after logout, accessing protected page redirects to login).
-6. **Numeric oracles**: For calculations (tax, total, subtotal), provide exact formula or expected numeric value (e.g., tax = subtotal * 0.08, rounded to 2 decimals).
-7. **UI state**: Include visual elements if required (e.g., button text changes from "Add to cart" to "Remove").
-8. **Storage**: If requirement mentions localStorage, assert that data is persisted after refresh.
+Inputs may use either `requirement_id` or `id` style fields. Prefer `requirement_id`, `coverage_id`, and `test_case_id` when present.
+
+### Output Format
+Output only a valid JSON array. Do not include Markdown, comments, prose, code fences, or a wrapper object.
+
+Each output object must correspond to one input test case in the same order and contain exactly:
+- `"test_case_id"`: string, copied from input test case
+- `"oracles"`: array of strings, each a specific observable assertion
+- `"oracle_types"`: array of strings aligned by position with `oracles`; choose from "ui_state", "error_message", "navigation", "data_consistency", "calculation", "storage", "performance", "security", "access_control", "visual"
+- `"confidence"`: number from 0 to 1
+
+### Oracle Rules
+1. Use exact expected text from requirements or test cases when available.
+2. Use exact URL/path when navigation is expected.
+3. Use exact field names, button labels, page titles, product names, badge counts, and storage keys when available.
+4. For invalid input, assert both the error and the absence of unintended success navigation or state change.
+5. For valid workflows, assert destination state plus at least one page-specific visible element.
+6. For cart behavior, assert visible item state and cart badge/storage consistency when applicable.
+7. For duplicate prevention, assert the item appears once and cart count does not increase twice.
+8. For checkout calculations, assert formulas and exact rounded results if test data contains prices.
+9. For logout, assert session removal and redirect/login visibility when applicable.
+10. For Reset App State, assert cart data is cleared but do not assert logout unless the test case says so.
+11. For performance, assert the stated timing threshold or measured delay with tolerance.
+12. For visual behavior, assert screenshot or visual comparison criteria, not just text.
+
+### Confidence Rules
+- 1.00: exact requirement, exact test data, exact expected result, and clear observable assertions.
+- 0.90-0.95: exact behavior but one secondary detail inferred.
+- 0.75-0.85: behavior is clear but exact text, selector, or metric is not fully specified.
+- 0.60-0.70: visual/performance/error-boundary behavior requires environment tolerance.
+- 0.50 or lower: requirement is ambiguous or oracle is mostly inferred.
 
 ### Example
 
 Input:
 {
   "requirements": [
-    {"id": "R3", "field": "username", "constraint": "non-empty", "condition": "username empty", "expected_action": "display 'Username is required'"},
-    {"id": "R6", "field": "login", "constraint": "valid credentials", "condition": "standard_user logs in", "expected_action": "redirect to /inventory.html"}
+    {
+      "requirement_id": "R1",
+      "expected_action": "Display error message 'Epic sadface: Username is required'"
+    }
   ],
   "coverage_items": [
-    {"id": "CI-003", "description": "Empty username", "source_requirement_ids": ["R3"]},
-    {"id": "CI-006", "description": "Valid login", "source_requirement_ids": ["R6"]}
+    {
+      "coverage_id": "COV-R1-01",
+      "requirement_id": "R1",
+      "coverage_item": "Empty username submission displays required username error"
+    }
   ],
   "test_cases": [
-    {"id": "TC-001", "title": "Empty username", "coverage_item_ids": ["CI-003"], "steps": ["clear username", "enter password", "click login"], "test_data": {"username": "", "password": "secret"}},
-    {"id": "TC-002", "title": "Valid login", "coverage_item_ids": ["CI-006"], "steps": ["enter standard_user", "enter secret_sauce", "click login"], "test_data": {"username": "standard_user", "password": "secret_sauce"}}
+    {
+      "test_case_id": "TC-001",
+      "requirement_id": "R1",
+      "coverage_id": "COV-R1-01",
+      "steps": ["Open /", "Clear username", "Enter password", "Click Login"],
+      "expected_result": "Login page remains open and error message 'Epic sadface: Username is required' is displayed"
+    }
   ]
 }
 
@@ -49,19 +73,11 @@ Output:
   {
     "test_case_id": "TC-001",
     "oracles": [
-      "Login page remains open",
-      "Error message 'Username is required' appears"
+      "Current page remains the login page",
+      "Error message 'Epic sadface: Username is required' is displayed",
+      "No redirect to /inventory.html occurs"
     ],
-    "oracle_types": ["ui_state", "error_message"],
-    "confidence": 0.95
-  },
-  {
-    "test_case_id": "TC-002",
-    "oracles": [
-      "Page redirects to /inventory.html",
-      "Product list page title is 'Products'"
-    ],
-    "oracle_types": ["navigation", "ui_state"],
+    "oracle_types": ["navigation", "error_message", "navigation"],
     "confidence": 0.95
   }
 ]

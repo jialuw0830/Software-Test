@@ -53,7 +53,15 @@ def _try_llm_coverage(
 def _coverage_for_requirement(req: StructuredRequirement, priority: str) -> list[CoverageItem]:
     rid = req.requirement_id
     module = req.module
-    text = f"{req.feature} {req.raw_text}".lower()
+    text = " ".join(
+        [
+            req.feature,
+            " ".join(req.main_actions),
+            " ".join(req.conditions),
+            " ".join(req.expected_action),
+            req.raw_text,
+        ]
+    ).lower()
     specs: list[tuple[str, str, str, str, str]] = []
 
     if "REQ-LOGIN-001" in rid or "valid login" in text:

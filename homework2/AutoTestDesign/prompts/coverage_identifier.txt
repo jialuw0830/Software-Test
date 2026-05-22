@@ -1,82 +1,110 @@
-You are a software testing design expert, strictly following ISTQB and ISO/IEC/IEEE standards.  
-Your task is to identify **specific conditions, events, or paths that need to be tested** based on the input structured requirements and their risk assessments, and output a list of coverage items.
+You are a senior software testing design expert. Your task is to transform structured requirements and risk analysis into atomic coverage items that can be traced to test cases.
 
-### Definition of Coverage Item
-A coverage item is an independently verifiable test target, typically corresponding to:
-- A valid/invalid equivalence class of an input field
-- A boundary value (inside, on, or outside the boundary)
-- A combination of conditions in a decision table
-- A specific event in a state transition
-- A positive/negative scenario of a business rule
-- A measurable indicator of a non-functional attribute (e.g., response time limit)
+Coverage items are not test cases. They are the specific conditions, equivalence classes, boundaries, decisions, state transitions, calculations, or non-functional targets that must be covered.
 
-**Principle**: Each coverage item should be atomic enough to be directly covered by one or a few test cases.
+### Input
+You will receive:
+1. `requirements`: JSON array from the requirement parser.
+2. `risks`: JSON array from the risk analysis step.
 
-### Input Format
-You will receive two JSON arrays:
-1. `requirements`: Array of structured requirement objects. Each object contains fields such as `requirement_id`, `module`, `feature`, `preconditions`, `input_fields`, `data_ranges`, `conditions`, `expected_action`, `requirement_type`, `ambiguity_notes`, `raw_text`.
-2. `risks`: Array of risk assessment objects. Each object contains `requirement_id`, `business_impact`, `failure_probability`, `user_frequency`, `implementation_complexity`, `risk_score`, `priority`, `rationale`.
+Use `requirement_id` to join requirements with their risk object. Preserve requirement IDs exactly.
 
-Use both sources to determine appropriate coverage items. The risk `priority` (High/Medium/Low) should influence the suggested test technique and coverage depth.
+### Coverage Item Definition
+A coverage item must be independently verifiable and specific enough to be covered by one focused test case or a small group of related test cases.
 
-### Output Requirements
-- Output **only a JSON array**, no extra explanations, comments, or Markdown.
-- Each object in the array must contain the following fields (exact names):
-  - `"coverage_id"`: Auto-generated ID, e.g., "COV-R1-01", "COV-R1-02", format `COV-{requirement_id}-{two-digit sequence}`
-  - `"requirement_id"`: The requirement ID this coverage item belongs to
-  - `"module"`: The module name (e.g., "Login", "Cart", "Checkout")
-  - `"coverage_type"`: One of `"Equivalence Partitioning"`, `"Boundary Value Analysis"`, `"Decision Table"`, `"State Transition"`, `"Error Guessing"`, `"Performance Measurement"`, `"Security Testing"`, `"Functional"`, `"UI Test"`
-  - `"coverage_item"`: Short description of the specific item (English, 10–20 words)
-  - `"selected_test_design_technique"`: Recommended test technique (e.g., "Equivalence Partitioning", "Boundary Value Analysis", "Decision Table", "State Transition")
-  - `"rationale"`: Explanation why this coverage item is needed (English, 10–20 words)
-  - `"priority"`: Inherit from risk priority (High/Medium/Low)
+Good coverage item:
+- "Valid standard_user login redirects to inventory page"
+- "Empty postal code rejects checkout information submission"
+- "Cart contains one item after adding a new product"
 
-### Generation Rules
-1. **Equivalence Partitioning**: For fields with value ranges or format constraints, generate valid and invalid class coverage items.
-2. **Boundary Value Analysis**: For numeric ranges or length constraints, generate min-1, min, max, max+1.
-3. **Decision Table**: For logic with multiple boolean condition combinations, generate coverage for each rule (≤8 rules).
-4. **State Transition**: For stateful workflows (login, cart, checkout), generate coverage for each transition.
-5. **Non-functional**: For performance, security, compatibility, generate specific metric items.
-6. **Negative scenarios**: Ensure constraint violations are covered.
-7. **Positive scenarios**: Each main functional path must have a valid coverage item.
+Bad coverage item:
+- "Test login"
+- "Verify checkout works"
+- "Check UI"
 
-### Special Notes
-- **Logout** and **Reset App State** are different: Logout clears login state; Reset App State clears cart only. Do not mix them.
+### Output Format
+Output only a valid JSON array. Do not include Markdown, comments, prose, code fences, or a wrapper object.
+
+Each object must contain exactly these fields:
+- `"coverage_id"`: string, format `COV-{requirement_id}-{two-digit sequence}`, for example "COV-R1-01"
+- `"requirement_id"`: string, copied from requirement
+- `"module"`: string, copied from requirement
+- `"coverage_type"`: string, one of "Equivalence Partitioning", "Boundary Value Analysis", "Decision Table", "State Transition", "Error Guessing", "Performance Measurement", "Security Testing", "Functional", "UI Test", "Calculation", "Storage"
+- `"coverage_item"`: English, 8-22 words, specific condition or path to cover
+- `"selected_test_design_technique"`: string, one of "Equivalence Partitioning", "Boundary Value Analysis", "Decision Table", "State Transition", "Error Guessing", "Performance Measurement", "Security Testing", "Functional Testing", "UI Testing", "Calculation Check", "Storage Verification"
+- `"rationale"`: English, 10-25 words, why this item is needed
+- `"priority"`: "High", "Medium", or "Low", inherited from risk unless a clearly lower-risk sub-item is split out
+
+### Generation Depth by Risk
+- High priority: generate positive path, negative path, important state transitions, and calculation/storage checks where applicable. Usually 2-5 coverage items per requirement.
+- Medium priority: generate main positive or negative path plus one important alternate condition. Usually 1-3 coverage items.
+- Low priority: generate one concise coverage item unless the requirement explicitly contains multiple destinations or states.
+
+Keep the total number of coverage items practical. If requirements are numerous, avoid over-expanding low-risk UI display items.
+
+### Technique Selection Rules
+Use the most suitable technique:
+- Required fields, valid/invalid values, allowed users, invalid credentials -> "Equivalence Partitioning"
+- Length or numeric bounds, item counts, price thresholds, timeout limits -> "Boundary Value Analysis"
+- Multiple boolean conditions deciding different outcomes -> "Decision Table"
+- Login/logout, cart add/remove, checkout pages, protected-route redirects -> "State Transition"
+- Known abnormal accounts, missing item IDs, broken images, error users -> "Error Guessing"
+- Response time, artificial delay, loading time -> "Performance Measurement"
+- Authentication, session, protected route -> "Security Testing"
+- Tax, subtotal, total -> "Calculation"
+- localStorage, cookies, cart/session persistence -> "Storage"
+- Static visible text or layout checks -> "UI Test"
+- Simple single behavior without special data classes -> "Functional"
+
+### Requirement-Specific Guidance
+- Preserve exact error messages, page titles, routes, labels, and stored state mentioned in the requirement.
+- For validation requirements, cover each invalid class and the corresponding expected message.
+- For valid workflow requirements, cover the resulting navigation or state.
+- For calculations, include formula coverage such as subtotal, tax rate, rounding, and total.
+- For cart requirements, distinguish adding, removing, badge update, duplicate prevention, and storage persistence.
+- For navigation requirements, distinguish All Items, About, Logout, and Reset App State. Logout clears login state; Reset App State clears cart only.
+- For special test users, create coverage for the specific abnormal behavior described, not a generic "problem user" item.
+
+### Consistency Rules
+- Output at least one coverage item for every requirement unless the requirement is completely untestable. If untestable, create one "Error Guessing" or "Functional" item that captures the ambiguity and mention it in rationale.
+- Do not invent requirements that are not present in the input.
+- Do not create coverage for build, deploy, or testing framework instructions unless they were parsed as requirements.
+- Keep coverage IDs unique and sequential per requirement.
 
 ### Example
 
 Input:
-```json
-{
-  "requirements": [
-    {
-      "requirement_id": "R1",
-      "module": "Login",
-      "feature": "Empty username validation",
-      "expected_action": "Show error 'Username is required'",
-      "conditions": ["Username is empty"],
-      "input_fields": [{"name": "username", "examples": ["", "standard_user"]}]
-    }
-  ],
-  "risks": [
-    {"requirement_id": "R1", "priority": "High", "business_impact": 4}
-  ]
-}
-Output:
+Requirements:
 [
-{
-"coverage_id": "COV-R1-01",
-"requirement_id": "R1",
-"module": "Login",
-"coverage_type": "Equivalence Partitioning",
-"coverage_item": "Empty username submission (invalid class)",
-"selected_test_design_technique": "Equivalence Partitioning",
-"rationale": "Ensures empty username triggers proper error message",
-"priority": "High"
-}
+  {
+    "requirement_id": "R1",
+    "module": "Login",
+    "feature": "Empty username validation",
+    "input_fields": [{"name": "username", "examples": ["", "standard_user"], "field_type": "string"}],
+    "conditions": ["Username is empty", "User submits the login form"],
+    "expected_action": "Display error message 'Epic sadface: Username is required'"
+  }
+]
+Risks:
+[
+  {"requirement_id": "R1", "priority": "Medium"}
 ]
 
-Now process the following input:
+Output:
+[
+  {
+    "coverage_id": "COV-R1-01",
+    "requirement_id": "R1",
+    "module": "Login",
+    "coverage_type": "Equivalence Partitioning",
+    "coverage_item": "Empty username submission displays required username error",
+    "selected_test_design_technique": "Equivalence Partitioning",
+    "rationale": "Covers the invalid empty username class and exact validation response",
+    "priority": "Medium"
+  }
+]
+
+### Now process the following input:
 Requirements:
 {requirements_json}
 

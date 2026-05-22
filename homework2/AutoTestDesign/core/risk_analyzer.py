@@ -73,7 +73,16 @@ def _try_llm_risk(requirements: list[StructuredRequirement], llm_client: LLMClie
 
 
 def _risk_for_requirement(req: StructuredRequirement) -> RiskAssessment:
-    text = f"{req.module} {req.feature} {req.raw_text}".lower()
+    text = " ".join(
+        [
+            req.module,
+            req.feature,
+            " ".join(req.main_actions),
+            " ".join(req.conditions),
+            " ".join(req.expected_action),
+            req.raw_text,
+        ]
+    ).lower()
     business_impact = 3
     failure_probability = 3
     user_frequency = 3

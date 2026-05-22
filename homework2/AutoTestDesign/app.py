@@ -36,8 +36,13 @@ GENERATED_TESTS_DIR = BASE_DIR / "generated_tests"
 JSON_FIELDS = {
     "preconditions",
     "input_fields",
+    "main_actions",
     "data_ranges",
     "conditions",
+    "expected_action",
+    "coverage_items",
+    "test_techniques",
+    "acceptance_scenarios",
     "ambiguity_notes",
     "test_data",
     "steps",

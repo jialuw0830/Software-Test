@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class InputField(BaseModel):
@@ -19,13 +19,72 @@ class StructuredRequirement(BaseModel):
     feature: str
     actor: str = "End user"
     preconditions: list[str] = Field(default_factory=list)
-    input_fields: list[InputField] = Field(default_factory=list)
-    data_ranges: dict[str, str] = Field(default_factory=dict)
+    input_fields: list[object] = Field(default_factory=list)
+    main_actions: list[str] = Field(default_factory=list)
+    data_ranges: dict[str, object] = Field(default_factory=dict)
     conditions: list[str] = Field(default_factory=list)
-    expected_action: str
+    expected_action: list[str] = Field(default_factory=list)
     requirement_type: str = "Functional"
+    risk_level: str = "Medium"
+    test_priority: str = "Medium"
+    coverage_items: list[str] = Field(default_factory=list)
+    test_techniques: list[str] = Field(default_factory=list)
+    acceptance_scenarios: list[str] = Field(default_factory=list)
     ambiguity_notes: list[str] = Field(default_factory=list)
     raw_text: str = ""
+
+    @field_validator(
+        "preconditions",
+        "main_actions",
+        "conditions",
+        "expected_action",
+        "coverage_items",
+        "test_techniques",
+        "acceptance_scenarios",
+        "ambiguity_notes",
+        mode="before",
+    )
+    @classmethod
+    def _coerce_string_list(cls, value: object) -> list[str]:
+        if value is None:
+            return []
+        if isinstance(value, str):
+            return [value] if value.strip() else []
+        if isinstance(value, list):
+            return [str(item) for item in value if str(item).strip()]
+        return [str(value)]
+
+    @field_validator("input_fields", mode="before")
+    @classmethod
+    def _coerce_input_fields(cls, value: object) -> list[object]:
+        if value is None:
+            return []
+        if isinstance(value, list):
+            fields = []
+            for item in value:
+                if isinstance(item, dict):
+                    fields.append(item)
+                elif isinstance(item, str) and item.strip():
+                    fields.append({"name": item, "field_type": "text", "required": False, "examples": []})
+            return fields
+        if isinstance(value, dict):
+            return [value]
+        if isinstance(value, str) and value.strip():
+            return [{"name": value, "field_type": "text", "required": False, "examples": []}]
+        return []
+
+    @field_validator("data_ranges", mode="before")
+    @classmethod
+    def _coerce_data_ranges(cls, value: object) -> dict[str, object]:
+        if value is None:
+            return {}
+        if isinstance(value, dict):
+            return {str(key): item for key, item in value.items()}
+        if isinstance(value, list):
+            return {"values": value}
+        if isinstance(value, str) and value.strip():
+            return {"description": value}
+        return {}
 
 
 class RiskAssessment(BaseModel):
