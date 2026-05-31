@@ -8,3 +8,8 @@ outputs/*
 generated_tests/__pycache__/
 test-results/
 playwright-report/
+
+AGENT.md
+
+docs/
+

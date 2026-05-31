@@ -8,6 +8,8 @@ import pandas as pd
 import streamlit as st
 
 from core.coverage_identifier import identify_coverage_items
+from core.artifact_validator import validate_output_artifacts
+from core.decision_table import generate_decision_table_rules
 from core.exporter import export_artifacts, to_dataframe
 from core.llm_client import LLMClient
 from core.optimizer import optimize_test_suite
@@ -26,7 +28,8 @@ from core.schemas import (
     model_to_dict,
 )
 from core.test_designer import generate_test_cases
-from core.test_runner import run_generated_tests
+from core.test_runner import run_generated_tests, write_execution_results_csv
+from core.target_context import SAUCEDEMO_CONTEXT, context_from_values
 from core.traceability import generate_traceability_matrix
 
 
@@ -68,6 +71,8 @@ def init_state() -> None:
         "result_analysis": None,
         "export_paths": {},
         "generated_test_path": "",
+        "target_name": "",
+        "target_base_url": "",
     }
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
@@ -181,7 +186,7 @@ def main() -> None:
     init_state()
 
     st.title("AutoTestDesign")
-    st.caption("AI-driven black-box test design pipeline for SauceDemo / Swag Labs")
+    st.caption("AI-driven test design pipeline for a configured target application")
 
     with st.sidebar:
         st.subheader("Runtime")
@@ -191,7 +196,16 @@ def main() -> None:
             st.error(str(exc))
             st.stop()
         st.success(llm_client.mode)
-        st.write("Target app: https://www.saucedemo.com/")
+        st.session_state.target_name = st.text_input(
+            "Target application",
+            value=st.session_state.target_name,
+            placeholder="e.g. SauceDemo / Swag Labs",
+        )
+        st.session_state.target_base_url = st.text_input(
+            "Target base URL",
+            value=st.session_state.target_base_url,
+            placeholder="https://example.test/",
+        )
         st.write(f"Outputs: `{OUTPUT_DIR}`")
         st.write(f"Generated tests: `{GENERATED_TESTS_DIR}`")
 
@@ -224,6 +238,8 @@ def main() -> None:
             uploaded = st.file_uploader("Upload requirements CSV / TXT / MD", type=["csv", "txt", "md"])
             if st.button("Load SauceDemo Sample Requirements", use_container_width=True):
                 before = list(st.session_state.requirements)
+                st.session_state.target_name = SAUCEDEMO_CONTEXT.target_name
+                st.session_state.target_base_url = SAUCEDEMO_CONTEXT.base_url
                 st.session_state.raw_requirements = sample_requirements_markdown()
                 st.session_state.requirements = parse_requirements_from_dataframe(sample_requirements_df())
                 add_review_log("requirements", "load_sample", before, st.session_state.requirements, "Loaded curated SauceDemo sample requirements.")
@@ -363,6 +379,7 @@ def main() -> None:
             st.dataframe(to_dataframe(st.session_state.traceability), use_container_width=True)
         if st.button("Export Artifacts", use_container_width=True):
             if st.session_state.requirements and st.session_state.test_cases:
+                target_context = context_from_values(st.session_state.target_name, st.session_state.target_base_url)
                 if not st.session_state.traceability:
                     st.session_state.traceability = generate_traceability_matrix(
                         st.session_state.requirements,
@@ -370,6 +387,7 @@ def main() -> None:
                         st.session_state.test_cases,
                         st.session_state.execution_results,
                     )
+                decision_table_rules = generate_decision_table_rules(st.session_state.test_cases)
                 st.session_state.export_paths = export_artifacts(
                     OUTPUT_DIR,
                     st.session_state.requirements,
@@ -380,8 +398,13 @@ def main() -> None:
                     st.session_state.review_log,
                     st.session_state.optimized_cases,
                     st.session_state.result_analysis,
+                    decision_table_rules,
+                    st.session_state.execution_results,
                 )
-                st.success("Artifacts exported.")
+                issues = validate_output_artifacts(OUTPUT_DIR, target_context.target_name)
+                st.session_state.export_paths["artifact_validation_report"] = str(OUTPUT_DIR / "artifact_validation_report.md")
+                st.session_state.export_paths["artifact_validation_report_csv"] = str(OUTPUT_DIR / "artifact_validation_report.csv")
+                st.success(f"Artifacts exported. Validation issues: {len(issues)}")
             else:
                 st.warning("Generate requirements and test cases before export.")
         if st.session_state.export_paths:
@@ -389,11 +412,12 @@ def main() -> None:
 
     with tabs[6]:
         st.header("Step 7: Generate Playwright/PyTest Scripts")
-        st.write("Generated tests use pytest and Playwright sync API with SauceDemo data-test selectors.")
+        st.write("Generated pytest artifacts use a target-specific adapter when one is configured; otherwise assisted placeholders are created.")
         if st.button("Generate Playwright Tests", type="primary", use_container_width=True):
             if st.session_state.test_cases:
                 try:
-                    path = generate_playwright_tests(st.session_state.test_cases, GENERATED_TESTS_DIR)
+                    target_context = context_from_values(st.session_state.target_name, st.session_state.target_base_url)
+                    path = generate_playwright_tests(st.session_state.test_cases, GENERATED_TESTS_DIR, target_context)
                     st.session_state.generated_test_path = str(path)
                     st.success(f"Generated: {path}")
                 except Exception as exc:
@@ -477,6 +501,7 @@ def main() -> None:
                     st.session_state.execution_results,
                 )
                 add_review_log("execution_results", "analyze", before, st.session_state.execution_results, "Entered or uploaded execution results and generated improvement suggestions.")
+                write_execution_results_csv(st.session_state.execution_results, OUTPUT_DIR / "execution_results.csv")
                 st.success("Execution results analyzed.")
         else:
             st.info("Generate test cases before entering results.")

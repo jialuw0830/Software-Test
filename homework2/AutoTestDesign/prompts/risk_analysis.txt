@@ -2,6 +2,10 @@ You are a senior software testing risk analyst. Your task is to assign a risk sc
 
 Use the structured requirement fields exactly as provided. Do not rename requirement IDs. Do not create, delete, or merge requirements in this step.
 
+AutoTestDesign is the tool, not the target application under test. Score risk for the target described by the structured requirements. Do not add target-specific assumptions that are absent from the input.
+
+The application will recalculate priority from the numeric dimensions. If a requirement should be High priority, choose dimension scores that make the weighted score support High priority instead of relying on text-only overrides.
+
 ### Input
 You will receive a JSON array of structured requirements. Each requirement may contain:
 - `requirement_id`

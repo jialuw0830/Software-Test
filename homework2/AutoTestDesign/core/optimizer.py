@@ -36,6 +36,8 @@ def optimize_test_suite(
         )
         data = test.model_dump()
         data["optimization_score"] = score
+        data["selected_for_smoke"] = test.priority == "High" and test.automation_feasibility >= 0.75
+        data["selected_for_regression"] = test.priority == "High" or test.test_case_id in failing_case_ids
         optimized.append(TestCase(**data))
 
     return sorted(

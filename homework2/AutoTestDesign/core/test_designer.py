@@ -73,25 +73,28 @@ def _case_for_coverage(index: int, coverage: CoverageItem) -> TestCase:
         module=coverage.module,
         technique=coverage.selected_test_design_technique,
         priority=coverage.priority,
-        preconditions=["SauceDemo is reachable at https://www.saucedemo.com/."],
+        preconditions=["Target application is reachable in the configured test environment."],
         automation_selector_hints=list(SELECTORS.values()),
         traceability_notes=f"Generated from {coverage.coverage_id}: {coverage.coverage_item}",
     )
 
     def case(test_data, steps, expected_result, automation_feasibility=0.9) -> TestCase:
+        selector_hint = ", ".join(base["automation_selector_hints"][:4])
         return TestCase(
             **base,
             test_data=test_data,
             steps=steps,
             expected_result=expected_result,
             automation_feasibility=automation_feasibility,
+            assertion_hint=_assertion_hint(expected_result),
+            selector_hint=selector_hint,
         )
 
     if "valid login" in name or "inventory page visible" in name:
         return case(
             {"username": "standard_user", "password": "secret_sauce"},
             [
-                "Open the SauceDemo login page.",
+                "Open the target application login page.",
                 "Enter username standard_user.",
                 "Enter password secret_sauce.",
                 "Click Login.",
@@ -103,7 +106,7 @@ def _case_for_coverage(index: int, coverage: CoverageItem) -> TestCase:
         return case(
             {"username": "locked_out_user", "password": "secret_sauce"},
             [
-                "Open the SauceDemo login page.",
+                "Open the target application login page.",
                 "Enter username locked_out_user.",
                 "Enter password secret_sauce.",
                 "Click Login.",
@@ -263,3 +266,16 @@ def _case_for_coverage(index: int, coverage: CoverageItem) -> TestCase:
         "The observed behavior matches the structured requirement.",
         0.55,
     )
+
+
+def _assertion_hint(expected_result: str) -> str:
+    expected = expected_result.lower()
+    if "error" in expected or "blocked" in expected or "reject" in expected:
+        return "Assert the validation or error state is visible and no success navigation occurred."
+    if "total" in expected or "tax" in expected or "subtotal" in expected:
+        return "Assert displayed numeric values satisfy the expected calculation formula."
+    if "badge" in expected or "cart" in expected:
+        return "Assert visible item count and cart badge state match the expected cart state."
+    if "inventory" in expected or "products" in expected:
+        return "Assert the expected destination page title and representative content are visible."
+    return "Assert the observable UI state matches the expected result."

@@ -1,4 +1,4 @@
-"""Generated Playwright tests for SauceDemo from AutoTestDesign artifacts.
+"""Generated Playwright tests for SauceDemo / Swag Labs from AutoTestDesign artifacts.
 
 Run with:
     pytest generated_tests/test_saucedemo_from_artifacts.py
@@ -13,7 +13,7 @@ import pytest
 from playwright.sync_api import Page, expect
 
 
-BASE_URL = os.getenv("SAUCEDEMO_URL", "https://www.saucedemo.com/")
+BASE_URL = os.getenv("TARGET_BASE_URL", os.getenv("SAUCEDEMO_URL", 'https://www.saucedemo.com/'))
 
 
 PRODUCT_SELECTORS = {
@@ -95,9 +95,18 @@ def test_tc_004_login_equivalence_partitioning(page: Page) -> None:
 
 def test_tc_005_login_decision_table_testing(page: Page) -> None:
     'TC-005: requirement=REQ-LOGIN-002; coverage=COV-REQ-LOGIN-002-02; technique=Decision Table Testing'
+    # decision table rule 1
     login(page, 'standard_user', 'secret_sauce')
     expect(page.locator("[data-test='title']")).to_have_text("Products")
-    expect(page.locator('.inventory_item')).to_have_count(6)
+    # decision table rule 2
+    login(page, 'standard_user', 'wrong')
+    expect(page.locator("[data-test='error']")).to_be_visible()
+    # decision table rule 3
+    login(page, 'locked_out_user', 'secret_sauce')
+    expect(page.locator("[data-test='error']")).to_be_visible()
+    # decision table rule 4
+    login(page, '', 'secret_sauce')
+    expect(page.locator("[data-test='error']")).to_be_visible()
 
 def test_tc_006_inventory_state_transition_testing(page: Page) -> None:
     'TC-006: requirement=REQ-INVENTORY-001; coverage=COV-REQ-INVENTORY-001-01; technique=State Transition Testing'
@@ -107,11 +116,19 @@ def test_tc_006_inventory_state_transition_testing(page: Page) -> None:
 
 def test_tc_007_inventory_equivalence_partitioning(page: Page) -> None:
     'TC-007: requirement=REQ-INVENTORY-002; coverage=COV-REQ-INVENTORY-002-01; technique=Equivalence Partitioning'
-    pytest.skip('Manual or assisted case generated from artifact TC-007; unsupported automated mapping for Equivalence Partitioning.')
+    login(page)
+    page.locator("[data-test='product-sort-container']").select_option('az')
+    expect(page.locator('.inventory_item')).to_have_count(6)
+    page.locator("[data-test='product-sort-container']").select_option('za')
+    expect(page.locator('.inventory_item')).to_have_count(6)
 
 def test_tc_008_inventory_equivalence_partitioning(page: Page) -> None:
     'TC-008: requirement=REQ-INVENTORY-002; coverage=COV-REQ-INVENTORY-002-02; technique=Equivalence Partitioning'
-    pytest.skip('Manual or assisted case generated from artifact TC-008; unsupported automated mapping for Equivalence Partitioning.')
+    login(page)
+    page.locator("[data-test='product-sort-container']").select_option('lohi')
+    expect(page.locator('.inventory_item')).to_have_count(6)
+    page.locator("[data-test='product-sort-container']").select_option('hilo')
+    expect(page.locator('.inventory_item')).to_have_count(6)
 
 def test_tc_009_cart_equivalence_partitioning(page: Page) -> None:
     'TC-009: requirement=REQ-CART-001; coverage=COV-REQ-CART-001-01; technique=Equivalence Partitioning'
@@ -132,23 +149,30 @@ def test_tc_010_cart_boundary_value_analysis(page: Page) -> None:
 
 def test_tc_011_cart_boundary_value_analysis(page: Page) -> None:
     'TC-011: requirement=REQ-CART-002; coverage=COV-REQ-CART-002-01; technique=Boundary Value Analysis'
-    pytest.skip('Cart case lacks concrete product data for generated automation')
+    login(page)
+    expect(page.locator("[data-test='shopping-cart-badge']")).to_have_count(0)
+    add_product_to_cart(page, 'Sauce Labs Backpack')
+    expect(page.locator("[data-test='shopping-cart-badge']")).to_have_text('1')
+    add_product_to_cart(page, 'Sauce Labs Bike Light')
+    expect(page.locator("[data-test='shopping-cart-badge']")).to_have_text('2')
 
 def test_tc_012_cart_state_transition_testing(page: Page) -> None:
     'TC-012: requirement=REQ-CART-003; coverage=COV-REQ-CART-003-01; technique=State Transition Testing'
     login(page)
     add_product_to_cart(page, 'Sauce Labs Backpack')
+    page.locator("[data-test='remove-sauce-labs-backpack']").click()
     page.locator("[data-test='shopping-cart-link']").click()
-    expect(page.locator('.cart_item')).to_have_count(1)
-    expect(page.locator("[data-test='shopping-cart-badge']")).to_have_text('1')
+    expect(page.locator('.cart_item')).to_have_count(0)
+    expect(page.locator("[data-test='shopping-cart-badge']")).to_have_count(0)
 
 def test_tc_013_cart_boundary_value_analysis(page: Page) -> None:
     'TC-013: requirement=REQ-CART-003; coverage=COV-REQ-CART-003-02; technique=Boundary Value Analysis'
     login(page)
     add_product_to_cart(page, 'Sauce Labs Backpack')
+    page.locator("[data-test='remove-sauce-labs-backpack']").click()
     page.locator("[data-test='shopping-cart-link']").click()
-    expect(page.locator('.cart_item')).to_have_count(1)
-    expect(page.locator("[data-test='shopping-cart-badge']")).to_have_text('1')
+    expect(page.locator('.cart_item')).to_have_count(0)
+    expect(page.locator("[data-test='shopping-cart-badge']")).to_have_count(0)
 
 def test_tc_014_checkout_decision_table_testing(page: Page) -> None:
     'TC-014: requirement=REQ-CHECKOUT-001; coverage=COV-REQ-CHECKOUT-001-01; technique=Decision Table Testing'
@@ -203,10 +227,14 @@ def test_tc_020_checkout_state_transition_testing(page: Page) -> None:
 
 def test_tc_021_checkout_state_transition_testing(page: Page) -> None:
     'TC-021: requirement=REQ-CHECKOUT-003; coverage=COV-REQ-CHECKOUT-003-02; technique=State Transition Testing'
-    pytest.skip('Manual or assisted case generated from artifact TC-021; unsupported automated mapping for State Transition Testing.')
+    start_checkout(page, ['Sauce Labs Backpack'])
+    fill_checkout_info(page, 'Ada', 'Lovelace', '10001')
+    page.locator("[data-test='cancel']").click()
+    expect(page.locator("[data-test='title']")).to_have_text("Products")
 
 def test_tc_022_navigation_state_transition_testing(page: Page) -> None:
     'TC-022: requirement=REQ-LOGOUT-001; coverage=COV-REQ-LOGOUT-001-01; technique=State Transition Testing'
-    login(page, 'standard_user', 'secret_sauce')
-    expect(page.locator("[data-test='title']")).to_have_text("Products")
-    expect(page.locator('.inventory_item')).to_have_count(6)
+    login(page)
+    page.locator('#react-burger-menu-btn').click()
+    page.locator('#logout_sidebar_link').click()
+    expect(page.locator("[data-test='username']")).to_be_visible()

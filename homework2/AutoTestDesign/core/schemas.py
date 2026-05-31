@@ -110,6 +110,18 @@ class CoverageItem(BaseModel):
     priority: str
 
 
+class DecisionTableRule(BaseModel):
+    decision_table_id: str
+    requirement_id: str
+    module: str
+    rule_id: str
+    condition_name: str
+    condition_value: str
+    action: str
+    expected_result: str
+    generated_test_case_id: str
+
+
 class TestCase(BaseModel):
     test_case_id: str
     requirement_id: str
@@ -123,8 +135,12 @@ class TestCase(BaseModel):
     expected_result: str
     automation_feasibility: float = Field(default=0.75, ge=0.0, le=1.0)
     automation_selector_hints: list[str] = Field(default_factory=list)
+    assertion_hint: str = ""
+    selector_hint: str = ""
     traceability_notes: str = ""
     optimization_score: float | None = None
+    selected_for_smoke: bool = False
+    selected_for_regression: bool = False
 
 
 class ReviewLogEntry(BaseModel):

@@ -2,6 +2,8 @@ You are a senior software testing engineer. Your task is to generate executable 
 
 Each test case must be concrete, traceable, and directly automatable when possible. Do not produce abstract instructions such as "verify functionality". Use exact data, exact button labels, exact paths, and exact expected results whenever available.
 
+AutoTestDesign is the tool, not the target application under test. Generate tests for the target described by the input artifacts. Do not inject SauceDemo-specific users, selectors, products, URLs, or workflows unless the input artifacts explicitly describe SauceDemo / Swag Labs.
+
 ### Input
 You will receive:
 1. `coverage_items`: JSON array from coverage identification.
@@ -25,8 +27,12 @@ Each object must contain exactly these fields:
 - `"expected_result"`: string with observable assertions
 - `"automation_feasibility"`: number from 0 to 1
 - `"automation_selector_hints"`: array of strings, empty if unknown
+- `"assertion_hint"`: string with the primary observable assertion
+- `"selector_hint"`: string with known target selectors, empty if unknown
 - `"traceability_notes"`: string linking requirement and coverage
 - `"optimization_score"`: number or null
+- `"selected_for_smoke"`: boolean
+- `"selected_for_regression"`: boolean
 
 ### Test Case Design Rules
 1. Create at least one test case for every coverage item.
@@ -38,8 +44,11 @@ Each object must contain exactly these fields:
 7. For High priority cases, include stronger assertions such as URL plus page title, badge plus storage, or calculation plus displayed value.
 8. For negative tests, assert the user remains on the correct page and no unintended state change occurs.
 9. Preserve traceability to both `requirement_id` and `coverage_id`.
+10. For Decision Table Testing, make each generated case traceable to a specific rule or include rule data in `test_data`.
 
-### Common SauceDemo Data and Selectors
+### Optional SauceDemo Sample Data and Selectors
+Use this section only when the input artifacts explicitly describe SauceDemo / Swag Labs.
+
 Use these only when they match the coverage item:
 - Valid username: `standard_user`
 - Locked username: `locked_out_user`
@@ -95,8 +104,12 @@ Output:
     "expected_result": "Login page remains open and error message 'Epic sadface: Username is required' is displayed",
     "automation_feasibility": 0.95,
     "automation_selector_hints": ["[data-test='username']", "[data-test='password']", "[data-test='login-button']", "[data-test='error']"],
+    "assertion_hint": "Assert the error message is visible and no redirect to /inventory.html occurs",
+    "selector_hint": "[data-test='username'], [data-test='password'], [data-test='login-button'], [data-test='error']",
     "traceability_notes": "Covers requirement R1 through coverage item COV-R1-01",
-    "optimization_score": null
+    "optimization_score": null,
+    "selected_for_smoke": false,
+    "selected_for_regression": false
   }
 ]
 

@@ -89,7 +89,7 @@ def _risk_for_requirement(req: StructuredRequirement) -> RiskAssessment:
     implementation_complexity = 2
     rationale_bits = []
 
-    if "checkout" in text or "price" in text or "order" in text or "tax" in text:
+    if "checkout" in text or "order" in text or "tax" in text or "total price" in text or "price calculation" in text:
         business_impact = 5
         user_frequency = 4
         implementation_complexity = 4
@@ -117,6 +117,13 @@ def _risk_for_requirement(req: StructuredRequirement) -> RiskAssessment:
         failure_probability = 2
         implementation_complexity = 2
         rationale_bits.append("Logout is important but comparatively simple.")
+
+    desired_priority = req.test_priority or req.risk_level
+    if desired_priority == "High":
+        business_impact = max(business_impact, 4)
+        failure_probability = max(failure_probability, 4)
+        user_frequency = max(user_frequency, 4)
+        implementation_complexity = max(implementation_complexity, 4)
 
     score = calculate_risk_score(business_impact, failure_probability, user_frequency, implementation_complexity)
     return RiskAssessment(

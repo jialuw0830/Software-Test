@@ -4,6 +4,7 @@ import py_compile
 
 from core.playwright_generator import generate_playwright_tests
 from core.schemas import TestCase as SchemaTestCase
+from core.target_context import TargetContext
 
 
 def _case(
@@ -123,4 +124,68 @@ def test_unsupported_case_is_preserved_as_skip(tmp_path) -> None:
     source = path.read_text(encoding="utf-8")
     assert "pytest.skip" in source
     assert "unsupported automated mapping" in source
+    py_compile.compile(str(path), doraise=True)
+
+
+def test_generic_target_generates_assisted_placeholders(tmp_path) -> None:
+    path = generate_playwright_tests(
+        [
+            _case(
+                "TC-005",
+                "Login",
+                "Equivalence Partitioning",
+                {"username": "user"},
+                "User reaches the dashboard.",
+            )
+        ],
+        tmp_path,
+        TargetContext(target_name="Example App", base_url="https://example.test"),
+    )
+
+    source = path.read_text(encoding="utf-8")
+    assert path.name == "test_assisted_from_artifacts.py"
+    assert "Example App" in source
+    assert "saucedemo" not in source.lower()
+    assert "pytest.skip" in source
+    py_compile.compile(str(path), doraise=True)
+
+
+def test_remove_case_clicks_remove_and_asserts_empty_cart(tmp_path) -> None:
+    path = generate_playwright_tests(
+        [
+            _case(
+                "TC-006",
+                "Cart",
+                "State Transition Testing",
+                {"product": "Sauce Labs Backpack"},
+                "The backpack is removed and the cart badge is cleared.",
+            )
+        ],
+        tmp_path,
+    )
+
+    source = path.read_text(encoding="utf-8")
+    assert "remove-sauce-labs-backpack" in source
+    assert "to_have_count(0)" in source
+    py_compile.compile(str(path), doraise=True)
+
+
+def test_logout_case_generates_logout_steps(tmp_path) -> None:
+    path = generate_playwright_tests(
+        [
+            _case(
+                "TC-007",
+                "Navigation",
+                "State Transition Testing",
+                {"username": "standard_user", "password": "secret_sauce"},
+                "The login page is displayed after logout.",
+            )
+        ],
+        tmp_path,
+    )
+
+    source = path.read_text(encoding="utf-8")
+    assert "#react-burger-menu-btn" in source
+    assert "#logout_sidebar_link" in source
+    assert "[data-test='username']" in source
     py_compile.compile(str(path), doraise=True)

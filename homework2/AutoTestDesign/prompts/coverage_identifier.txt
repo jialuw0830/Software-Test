@@ -2,6 +2,8 @@ You are a senior software testing design expert. Your task is to transform struc
 
 Coverage items are not test cases. They are the specific conditions, equivalence classes, boundaries, decisions, state transitions, calculations, or non-functional targets that must be covered.
 
+AutoTestDesign is the tool, not the target application under test. Generate coverage for the target described by the input requirements. Do not inject SauceDemo-specific modules, accounts, selectors, or workflows unless the input requirements explicitly describe SauceDemo / Swag Labs.
+
 ### Input
 You will receive:
 1. `requirements`: JSON array from the requirement parser.
@@ -29,9 +31,9 @@ Each object must contain exactly these fields:
 - `"coverage_id"`: string, format `COV-{requirement_id}-{two-digit sequence}`, for example "COV-R1-01"
 - `"requirement_id"`: string, copied from requirement
 - `"module"`: string, copied from requirement
-- `"coverage_type"`: string, one of "Equivalence Partitioning", "Boundary Value Analysis", "Decision Table", "State Transition", "Error Guessing", "Performance Measurement", "Security Testing", "Functional", "UI Test", "Calculation", "Storage"
+- `"coverage_type"`: string, one of "Equivalence Partitioning", "Boundary Value Analysis", "Decision Table Testing", "State Transition", "Error Guessing", "Performance Measurement", "Security Testing", "Functional", "UI Test", "Calculation", "Storage"
 - `"coverage_item"`: English, 8-22 words, specific condition or path to cover
-- `"selected_test_design_technique"`: string, one of "Equivalence Partitioning", "Boundary Value Analysis", "Decision Table", "State Transition", "Error Guessing", "Performance Measurement", "Security Testing", "Functional Testing", "UI Testing", "Calculation Check", "Storage Verification"
+- `"selected_test_design_technique"`: string, one of "Equivalence Partitioning", "Boundary Value Analysis", "Decision Table Testing", "State Transition Testing", "Error Guessing", "Performance Measurement", "Security Testing", "Functional Testing", "UI Testing", "Calculation Check", "Storage Verification"
 - `"rationale"`: English, 10-25 words, why this item is needed
 - `"priority"`: "High", "Medium", or "Low", inherited from risk unless a clearly lower-risk sub-item is split out
 
@@ -46,8 +48,8 @@ Keep the total number of coverage items practical. If requirements are numerous,
 Use the most suitable technique:
 - Required fields, valid/invalid values, allowed users, invalid credentials -> "Equivalence Partitioning"
 - Length or numeric bounds, item counts, price thresholds, timeout limits -> "Boundary Value Analysis"
-- Multiple boolean conditions deciding different outcomes -> "Decision Table"
-- Login/logout, cart add/remove, checkout pages, protected-route redirects -> "State Transition"
+- Multiple boolean conditions deciding different outcomes -> "Decision Table Testing"
+- Login/logout, cart add/remove, checkout pages, protected-route redirects -> "State Transition Testing"
 - Known abnormal accounts, missing item IDs, broken images, error users -> "Error Guessing"
 - Response time, artificial delay, loading time -> "Performance Measurement"
 - Authentication, session, protected route -> "Security Testing"
@@ -55,6 +57,8 @@ Use the most suitable technique:
 - localStorage, cookies, cart/session persistence -> "Storage"
 - Static visible text or layout checks -> "UI Test"
 - Simple single behavior without special data classes -> "Functional"
+
+For assignment evidence, ensure the output contains real coverage items for Equivalence Partitioning, Boundary Value Analysis, and Decision Table Testing when the input requirements contain suitable partitions, boundaries, or multi-condition decisions. State Transition Testing may be added when workflow states exist, but it must not replace Decision Table Testing.
 
 ### Requirement-Specific Guidance
 - Preserve exact error messages, page titles, routes, labels, and stored state mentioned in the requirement.

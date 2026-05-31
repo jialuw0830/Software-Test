@@ -328,8 +328,8 @@ def _infer_conditions(lower: str) -> list[str]:
 
 def _infer_preconditions(module: str, lower: str) -> list[str]:
     if module in {"Inventory", "Cart", "Checkout", "Navigation"}:
-        return ["User is on SauceDemo and can access the application.", "User is logged in unless validating login behavior."]
-    return ["SauceDemo login page is available."]
+        return ["User can access the target application.", "User is logged in unless validating login behavior."]
+    return ["Target application entry page is available."]
 
 
 def _infer_expected_action(raw_text: str) -> list[str]:

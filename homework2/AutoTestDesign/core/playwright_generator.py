@@ -6,26 +6,37 @@ import re
 from pathlib import Path
 
 from .schemas import TestCase
+from .target_context import SAUCEDEMO_CONTEXT, TargetContext
 
 
 GENERATED_FILE_NAME = "test_saucedemo_from_artifacts.py"
+GENERIC_FILE_NAME = "test_assisted_from_artifacts.py"
 
 
-def generate_playwright_tests(test_cases: list[TestCase], output_dir: Path | str) -> Path:
+def generate_playwright_tests(
+    test_cases: list[TestCase],
+    output_dir: Path | str,
+    target_context: TargetContext | None = None,
+) -> Path:
     """Generate a pytest file from the current test-case artifacts."""
 
     if not test_cases:
         raise ValueError("At least one test case is required to generate Playwright tests.")
 
+    context = target_context or SAUCEDEMO_CONTEXT
     target_dir = Path(output_dir)
     target_dir.mkdir(parents=True, exist_ok=True)
-    target = target_dir / GENERATED_FILE_NAME
-    target.write_text(_render_module(test_cases), encoding="utf-8")
+    if context.is_saucedemo:
+        target = target_dir / GENERATED_FILE_NAME
+        target.write_text(_render_saucedemo_module(test_cases, context), encoding="utf-8")
+    else:
+        target = target_dir / GENERIC_FILE_NAME
+        target.write_text(_render_generic_module(test_cases, context), encoding="utf-8")
     return target
 
 
-def _render_module(test_cases: list[TestCase]) -> str:
-    parts = [_module_header()]
+def _render_saucedemo_module(test_cases: list[TestCase], target_context: TargetContext) -> str:
+    parts = [_saucedemo_module_header(target_context)]
     used_names: set[str] = set()
     for test_case in test_cases:
         function_name = _unique_name(_function_name(test_case), used_names)
@@ -33,8 +44,38 @@ def _render_module(test_cases: list[TestCase]) -> str:
     return "\n\n".join(parts).rstrip() + "\n"
 
 
-def _module_header() -> str:
-    return '''"""Generated Playwright tests for SauceDemo from AutoTestDesign artifacts.
+def _render_generic_module(test_cases: list[TestCase], target_context: TargetContext) -> str:
+    title = target_context.target_name
+    parts = [
+        f'''"""Generated assisted pytest placeholders for {title} from AutoTestDesign artifacts."""
+
+from __future__ import annotations
+
+import pytest
+'''
+    ]
+    used_names: set[str] = set()
+    for test_case in test_cases:
+        function_name = _unique_name(_function_name(test_case), used_names)
+        reason = (
+            f"Automated Playwright adapter is not configured for {title}. "
+            f"Manual or assisted execution is required for {test_case.test_case_id}."
+        )
+        parts.append(
+            "\n".join(
+                [
+                    f"def {function_name}() -> None:",
+                    f"    {test_case.test_case_id!r}",
+                    f"    pytest.skip({reason!r})",
+                ]
+            )
+        )
+    return "\n\n".join(parts).rstrip() + "\n"
+
+
+def _saucedemo_module_header(target_context: TargetContext) -> str:
+    base_url = target_context.base_url or "https://www.saucedemo.com/"
+    return '''"""Generated Playwright tests for __TARGET_NAME__ from AutoTestDesign artifacts.
 
 Run with:
     pytest generated_tests/test_saucedemo_from_artifacts.py
@@ -49,7 +90,7 @@ import pytest
 from playwright.sync_api import Page, expect
 
 
-BASE_URL = os.getenv("SAUCEDEMO_URL", "https://www.saucedemo.com/")
+BASE_URL = os.getenv("TARGET_BASE_URL", os.getenv("SAUCEDEMO_URL", __BASE_URL__))
 
 
 PRODUCT_SELECTORS = {
@@ -100,7 +141,7 @@ def currency_value(text: str) -> float:
     match = re.search(r"[-+]?[0-9]*\\.?[0-9]+", text)
     assert match, f"No numeric currency value found in {text!r}"
     return float(match.group(0))
-'''
+'''.replace("__TARGET_NAME__", target_context.target_name).replace("__BASE_URL__", repr(base_url))
 
 
 def _render_test_function(function_name: str, test_case: TestCase) -> str:
@@ -120,6 +161,16 @@ def _automation_body(test_case: TestCase) -> list[str]:
     expected = test_case.expected_result.lower()
     module = test_case.module.lower()
 
+    if isinstance(data.get("decision_table"), list):
+        return _decision_table_body(data)
+    if "logout" in expected or "logout" in module or (module in {"navigation", "menu"} and "login page" in expected):
+        return _logout_body()
+    if "remove" in expected or "removed" in expected:
+        return _remove_cart_body(data)
+    if "cancel" in expected or data.get("action") == "cancel from checkout overview":
+        return _cancel_checkout_body(data)
+    if "sort" in expected or "sort_options" in data:
+        return _sort_body(data)
     if _is_checkout_calculation(test_case):
         return _checkout_calculation_body(data)
     if _is_checkout_fields(data):
@@ -149,6 +200,28 @@ def _login_body(data: dict[str, object], expected: str) -> list[str]:
     else:
         lines.append("expect(page.locator(\"[data-test='title']\")).to_have_text(\"Products\")")
         lines.append("expect(page.locator('.inventory_item')).to_have_count(6)")
+    return lines
+
+
+def _decision_table_body(data: dict[str, object]) -> list[str]:
+    rows = data.get("decision_table")
+    if not isinstance(rows, list):
+        return ["pytest.skip('Decision table data is not structured as a rule list')"]
+    lines = []
+    for index, row in enumerate(rows, start=1):
+        if not isinstance(row, dict):
+            continue
+        username = str(row.get("username", "standard_user"))
+        password = str(row.get("password", "secret_sauce"))
+        expected = str(row.get("expected", "")).lower()
+        lines.append(f"# decision table rule {index}")
+        lines.append(f"login(page, {username!r}, {password!r})")
+        if expected == "allow":
+            lines.append("expect(page.locator(\"[data-test='title']\")).to_have_text(\"Products\")")
+        else:
+            lines.append("expect(page.locator(\"[data-test='error']\")).to_be_visible()")
+    if not lines:
+        return ["pytest.skip('Decision table contains no executable rules')"]
     return lines
 
 
@@ -193,9 +266,62 @@ def _order_completion_body(data: dict[str, object]) -> list[str]:
     ]
 
 
+def _remove_cart_body(data: dict[str, object]) -> list[str]:
+    product = (_product_names(data) or ["Sauce Labs Backpack"])[0]
+    remove_selector = _remove_selector_for_product(product)
+    return [
+        "login(page)",
+        f"add_product_to_cart(page, {product!r})",
+        f"page.locator({remove_selector!r}).click()",
+        "page.locator(\"[data-test='shopping-cart-link']\").click()",
+        "expect(page.locator('.cart_item')).to_have_count(0)",
+        "expect(page.locator(\"[data-test='shopping-cart-badge']\")).to_have_count(0)",
+    ]
+
+
+def _cancel_checkout_body(data: dict[str, object]) -> list[str]:
+    products = _product_names(data) or ["Sauce Labs Backpack"]
+    return [
+        f"start_checkout(page, {products!r})",
+        "fill_checkout_info(page, 'Ada', 'Lovelace', '10001')",
+        "page.locator(\"[data-test='cancel']\").click()",
+        "expect(page.locator(\"[data-test='title']\")).to_have_text(\"Products\")",
+    ]
+
+
+def _logout_body() -> list[str]:
+    return [
+        "login(page)",
+        "page.locator('#react-burger-menu-btn').click()",
+        "page.locator('#logout_sidebar_link').click()",
+        "expect(page.locator(\"[data-test='username']\")).to_be_visible()",
+    ]
+
+
+def _sort_body(data: dict[str, object]) -> list[str]:
+    options = data.get("sort_options")
+    if not isinstance(options, list) or not options:
+        options = ["az", "za"]
+    lines = ["login(page)"]
+    for option in options:
+        lines.append(f"page.locator(\"[data-test='product-sort-container']\").select_option({str(option)!r})")
+        lines.append("expect(page.locator('.inventory_item')).to_have_count(6)")
+    return lines
+
+
 def _cart_body(data: dict[str, object], expected: str) -> list[str]:
     products = _product_names(data)
-    quantity = data.get("cart_quantity") or data.get("cart_item_count")
+    quantities = data.get("cart_quantities")
+    if isinstance(quantities, list):
+        return [
+            "login(page)",
+            "expect(page.locator(\"[data-test='shopping-cart-badge']\")).to_have_count(0)",
+            "add_product_to_cart(page, 'Sauce Labs Backpack')",
+            "expect(page.locator(\"[data-test='shopping-cart-badge']\")).to_have_text('1')",
+            "add_product_to_cart(page, 'Sauce Labs Bike Light')",
+            "expect(page.locator(\"[data-test='shopping-cart-badge']\")).to_have_text('2')",
+        ]
+    quantity = data.get("cart_quantity") or data.get("cart_item_count") or data.get("initial_cart_quantity")
     if not products and quantity in {1, "1"}:
         products = ["Sauce Labs Backpack"]
     if not products and quantity in {2, "2", "multiple"}:
@@ -273,6 +399,20 @@ def _product_names(data: dict[str, object]) -> list[str]:
     if isinstance(product, str) and product:
         return [product]
     return []
+
+
+def _remove_selector_for_product(product_name: str) -> str:
+    selector = {
+        "Sauce Labs Backpack": "[data-test='remove-sauce-labs-backpack']",
+        "Sauce Labs Bike Light": "[data-test='remove-sauce-labs-bike-light']",
+        "Sauce Labs Bolt T-Shirt": "[data-test='remove-sauce-labs-bolt-t-shirt']",
+        "Sauce Labs Fleece Jacket": "[data-test='remove-sauce-labs-fleece-jacket']",
+        "Sauce Labs Onesie": "[data-test='remove-sauce-labs-onesie']",
+        "Test.allTheThings() T-Shirt (Red)": "[data-test='remove-test.allthethings()-t-shirt-(red)']",
+    }.get(product_name)
+    if selector is None:
+        return "[data-test^='remove']"
+    return selector
 
 
 def _function_name(test_case: TestCase) -> str:
