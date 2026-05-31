@@ -26,6 +26,7 @@ from core.schemas import (
     model_to_dict,
 )
 from core.test_designer import generate_test_cases
+from core.test_runner import run_generated_tests
 from core.traceability import generate_traceability_matrix
 
 
@@ -391,14 +392,46 @@ def main() -> None:
         st.write("Generated tests use pytest and Playwright sync API with SauceDemo data-test selectors.")
         if st.button("Generate Playwright Tests", type="primary", use_container_width=True):
             if st.session_state.test_cases:
-                path = generate_playwright_tests(GENERATED_TESTS_DIR)
-                st.session_state.generated_test_path = str(path)
-                st.success(f"Generated: {path}")
+                try:
+                    path = generate_playwright_tests(st.session_state.test_cases, GENERATED_TESTS_DIR)
+                    st.session_state.generated_test_path = str(path)
+                    st.success(f"Generated: {path}")
+                except Exception as exc:
+                    st.error(f"Could not generate Playwright tests: {exc}")
             else:
                 st.warning("Generate test cases first.")
         if st.session_state.generated_test_path:
             path = Path(st.session_state.generated_test_path)
-            st.code(path.read_text(encoding="utf-8")[:6000], language="python")
+            if path.exists():
+                st.code(path.read_text(encoding="utf-8")[:6000], language="python")
+                if st.button("Run Generated Tests", use_container_width=True):
+                    with st.spinner("Running generated pytest tests..."):
+                        try:
+                            run_result = run_generated_tests(path, OUTPUT_DIR)
+                            before = list(st.session_state.execution_results)
+                            st.session_state.execution_results = run_result.execution_results
+                            add_review_log(
+                                "execution_results",
+                                "pytest_run",
+                                before,
+                                st.session_state.execution_results,
+                                f"Ran generated Playwright tests with return code {run_result.return_code}.",
+                            )
+                            st.success(f"Execution results exported: {run_result.execution_results_csv}")
+                            st.write(
+                                f"pytest return code: {run_result.return_code}; "
+                                f"results: {len(run_result.execution_results)} case(s)"
+                            )
+                            if run_result.stdout:
+                                with st.expander("pytest stdout"):
+                                    st.code(run_result.stdout[-6000:], language="text")
+                            if run_result.stderr:
+                                with st.expander("pytest stderr"):
+                                    st.code(run_result.stderr[-6000:], language="text")
+                        except Exception as exc:
+                            st.error(f"Could not run generated tests: {exc}")
+            else:
+                st.warning(f"Generated test file is missing: {path}")
 
     with tabs[7]:
         st.header("Step 8: Upload/Enter Test Execution Results and Generate Improvement Suggestions")
